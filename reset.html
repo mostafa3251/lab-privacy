@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>تعيين كلمة مرور جديدة — معمل الغزولي</title>
+<style>
+ :root{--ink:#16324A;--ink2:#5A7286;--ink3:#93A5B4;--line:#E3E9EE;
+       --gold:#D4A017;--ok:#0E8A6B;--okS:#E4F4EF;--red:#B4342A;--redS:#FBE9E7;--bg:#EEF2F5}
+ *{box-sizing:border-box;margin:0;padding:0}
+ body{font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif;
+      background:var(--bg);color:var(--ink);line-height:1.8;
+      min-height:100vh;display:flex;align-items:center;justify-content:center;padding:22px}
+ .card{background:#fff;border:1px solid var(--line);border-radius:18px;
+       padding:32px 26px;width:100%;max-width:430px}
+ .mark{width:70px;height:70px;border-radius:20px;background:var(--ink);color:var(--gold);
+       display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;
+       margin:0 auto 16px}
+ h1{font-size:20px;text-align:center}
+ .sub{font-size:14px;color:var(--ink2);text-align:center;margin-top:4px;margin-bottom:20px}
+ label{display:block;font-size:13.5px;color:var(--ink2);margin:14px 0 6px}
+ input{font:inherit;font-size:16px;width:100%;padding:13px;border:1px solid var(--line);
+       border-radius:12px;background:#FBFCFD;color:var(--ink)}
+ input:focus{outline:2px solid #1B7F8C;outline-offset:-1px}
+ button{font:inherit;font-size:16px;font-weight:700;width:100%;border:0;border-radius:13px;
+        padding:15px;margin-top:22px;background:var(--ink);color:#fff;cursor:pointer}
+ button:disabled{opacity:.55;cursor:not-allowed}
+ .msg{font-size:14px;padding:13px;border-radius:12px;margin-top:16px;text-align:center;line-height:1.7}
+ .err{background:var(--redS);color:var(--red)}
+ .ok{background:var(--okS);color:var(--ok)}
+ .hint{font-size:12.5px;color:var(--ink3);text-align:center;margin-top:16px;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="mark">غ</div>
+  <h1>تعيين كلمة مرور جديدة</h1>
+  <div class="sub">معمل الغزولي للتحاليل الطبية</div>
+
+  <div id="form" style="display:none">
+    <label for="p1">كلمة المرور الجديدة</label>
+    <input type="password" id="p1" autocomplete="new-password">
+    <label for="p2">أعد إدخالها</label>
+    <input type="password" id="p2" autocomplete="new-password">
+    <button id="go">حفظ</button>
+    <div class="hint">يجب ألا تقل عن ستة أحرف.</div>
+  </div>
+
+  <div id="msg"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const URL_ = 'https://dtclprzrfqlkmddqmchf.supabase.co';
+const KEY_ = 'sb_publishable_y330OpeDmz03PLB7lpRQJQ_451DCWCo';
+
+const sb = supabase.createClient(URL_, KEY_, {
+  auth: { detectSessionInUrl: true, flowType: 'implicit' }
+});
+
+const $ = (id) => document.getElementById(id);
+const show = (text, cls) => { $('msg').innerHTML = '<div class="msg ' + cls + '">' + text + '</div>'; };
+
+(async () => {
+  // الرابط القادم من البريد يحمل جلسة مؤقتة
+  const { data: { session } } = await sb.auth.getSession();
+
+  if (session) {
+    $('form').style.display = 'block';
+    return;
+  }
+
+  // أحيانًا تصل البيانات في الجزء بعد علامة #
+  const hash = new URLSearchParams(location.hash.replace(/^#/, ''));
+  if (hash.get('error_description')) {
+    show('انتهت صلاحية الرابط أو سبق استخدامه. اطلب رابطًا جديدًا من التطبيق.', 'err');
+    return;
+  }
+
+  await new Promise(r => setTimeout(r, 1200));
+  const again = await sb.auth.getSession();
+  if (again.data.session) { $('form').style.display = 'block'; return; }
+
+  show('افتح هذه الصفحة من الرابط الموجود في رسالة البريد.', 'err');
+})();
+
+$('go').onclick = async () => {
+  const p1 = $('p1').value, p2 = $('p2').value;
+  if (p1.length < 6) { show('كلمة المرور يجب ألا تقل عن ستة أحرف.', 'err'); return; }
+  if (p1 !== p2) { show('كلمتا المرور غير متطابقتين.', 'err'); return; }
+
+  $('go').disabled = true;
+  const { error } = await sb.auth.updateUser({ password: p1 });
+  $('go').disabled = false;
+
+  if (error) {
+    show('تعذّر الحفظ. اطلب رابطًا جديدًا من التطبيق.', 'err');
+    return;
+  }
+  $('form').style.display = 'none';
+  show('تم تغيير كلمة المرور. ارجع إلى التطبيق وسجّل الدخول بها.', 'ok');
+};
+</script>
+</body>
+</html>
